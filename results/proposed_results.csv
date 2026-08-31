@@ -1,0 +1,4 @@
+input,encoded,proposed_status,safe_output,possible_values,confidence
+Female,[0],AMBIGUOUS,,"['Female', '<UNSEEN>']",LOW
+Male,[1],SAFE,Male,['Male'],HIGH
+Unknown,[0],AMBIGUOUS,,"['Female', '<UNSEEN>']",LOW

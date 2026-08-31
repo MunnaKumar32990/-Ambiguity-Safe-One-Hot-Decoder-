@@ -1,0 +1,4 @@
+input,encoded,sklearn_decoded,ground_truth,correct
+Female,[np.int64(0)],Female,Female,True
+Male,[np.int64(1)],Male,Male,True
+Unknown,[np.int64(0)],Female,Unknown,False

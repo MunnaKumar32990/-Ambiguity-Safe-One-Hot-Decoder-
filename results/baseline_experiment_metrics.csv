@@ -1,0 +1,2 @@
+experiment,total_samples,safe_count,ambiguous_count,unknown_count,baseline_correct,baseline_incorrect,detection_rate_pct,safe_handling_rate_pct,notes
+baseline_reproduction,3,1,2,0,2,1,100.0,100.0,Canonical Female/Male/Unknown baseline

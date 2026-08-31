@@ -1,0 +1,18 @@
+{
+  "python.analysis.extraPaths": [
+    "C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages"
+  ],
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestPath": "python",
+  "python.testing.pytestArgs": [
+    "-m",
+    "pytest",
+    "--tb=short",
+    "-v"
+  ],
+  "python.testing.unittestEnabled": false,
+  "[python]": {
+    "editor.formatOnSave": false
+  },
+  "python.defaultInterpreterPath": "py"
+}

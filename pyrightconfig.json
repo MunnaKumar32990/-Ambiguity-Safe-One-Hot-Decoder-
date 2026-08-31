@@ -1,0 +1,11 @@
+{
+  "pythonVersion": "3.13",
+  "pythonPlatform": "Windows",
+  "pythonPath": "C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313\\python.exe",
+  "venvPath": "C:\\Users\\Asus\\AppData\\Local\\Programs\\Python\\Python313",
+  "include": ["src", "tests", "experiments"],
+  "exclude": ["results", "data"],
+  "typeCheckingMode": "basic",
+  "reportMissingImports": false,
+  "reportMissingModuleSource": false
+}
