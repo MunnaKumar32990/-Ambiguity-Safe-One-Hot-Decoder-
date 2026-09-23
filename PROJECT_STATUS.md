@@ -63,7 +63,23 @@ The entire prototype was built from scratch.
 | `README.md` | ✅ Done (15 required sections) |
 | `requirements.txt` | ✅ Done |
 | `demo.py` | ✅ Done |
+| `run_app.py` | ✅ Done (web app launcher) |
 | `PROJECT_STATUS.md` | ✅ This file |
+
+### Web Application (`backend/`, `frontend/`)
+
+| File | Component | Status |
+|---|---|---|
+| `backend/app.py` | Flask REST API (delegates to `src/`) | ✅ Done |
+| `backend/presets.py` | 6 preset experiment scenarios | ✅ Done |
+| `frontend/index.html` | Single-page interactive UI | ✅ Done |
+| `frontend/css/style.css` | Styles (light/dark, validated palette) | ✅ Done |
+| `frontend/js/app.js` | Client logic (presets, analyze, render) | ✅ Done |
+
+The web app lets you pick a preset or enter custom train/test data, choose the
+`drop` / `handle_unknown` config, and see the baseline sklearn decode side by
+side with the ambiguity-safe layer — plus metrics, a status distribution, and
+per-feature encoder metadata. Launch with `python run_app.py`.
 
 ---
 

@@ -115,7 +115,10 @@ pip install -r requirements.txt
 ## 8. How to Run
 
 ```bash
-# Main demonstration (for review/viva)
+# Interactive web app (frontend + API) — recommended for review/viva
+python run_app.py          # opens http://localhost:5000 in your browser
+
+# Main demonstration (CLI)
 python demo.py
 
 # Canonical baseline (shows the problem)

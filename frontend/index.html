@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ambiguity-Safe Inverse Decoding</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>◧</text></svg>" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">◧</span>
+        <div class="brand-text">
+          <h1>Ambiguity-Safe Inverse Decoding</h1>
+          <p>One-Hot Encoded Categorical Data &middot; Interactive Demonstrator</p>
+        </div>
+      </div>
+      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">
+        <span class="theme-icon">☾</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- ================= CONFIG PANEL ================= -->
+    <section class="panel config" aria-labelledby="config-title">
+      <h2 id="config-title">Configuration</h2>
+
+      <label class="field">
+        <span class="field-label">Preset scenario</span>
+        <select id="presetSelect">
+          <option value="">— Custom (edit fields below) —</option>
+        </select>
+      </label>
+      <p id="presetDesc" class="preset-desc"></p>
+
+      <label class="field">
+        <span class="field-label">Feature names <em>(comma-separated)</em></span>
+        <input id="featureNames" type="text" placeholder="Gender" />
+      </label>
+
+      <label class="field">
+        <span class="field-label">Training data</span>
+        <span class="field-hint">One sample per line. Multiple features: comma-separated.</span>
+        <textarea id="trainData" rows="4" spellcheck="false" placeholder="Female&#10;Male"></textarea>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Test data</span>
+        <span class="field-hint">Include unseen categories to trigger ambiguity.</span>
+        <textarea id="testData" rows="4" spellcheck="false" placeholder="Female&#10;Male&#10;Unknown"></textarea>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Ground truth <em>(optional)</em></span>
+        <span class="field-hint">True labels, for baseline correctness scoring.</span>
+        <textarea id="groundTruth" rows="4" spellcheck="false" placeholder="Female&#10;Male&#10;Unknown"></textarea>
+      </label>
+
+      <div class="field-row">
+        <label class="field">
+          <span class="field-label">drop</span>
+          <select id="dropSelect">
+            <option value="if_binary">if_binary</option>
+            <option value="first">first</option>
+            <option value="null">None</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">handle_unknown</span>
+          <select id="handleUnknown">
+            <option value="ignore">ignore</option>
+            <option value="error">error</option>
+          </select>
+        </label>
+      </div>
+
+      <button id="analyzeBtn" class="btn-primary" type="button">Analyze</button>
+      <p id="errorBox" class="error-box" hidden></p>
+    </section>
+
+    <!-- ================= RESULTS ================= -->
+    <section class="results" aria-live="polite">
+      <div id="placeholder" class="placeholder">
+        <p class="placeholder-title">Pick a preset or enter data, then press <strong>Analyze</strong>.</p>
+        <p class="placeholder-sub">The canonical <em>Gender (Binary)</em> preset reproduces the core research problem.</p>
+      </div>
+
+      <div id="resultsBody" hidden>
+        <!-- Key finding -->
+        <div id="keyFinding" class="key-finding"></div>
+
+        <!-- Metric tiles -->
+        <div class="tiles" id="tiles"></div>
+
+        <!-- Status distribution -->
+        <div class="panel">
+          <h2>Decoding status distribution</h2>
+          <div id="statusBars" class="status-bars"></div>
+        </div>
+
+        <!-- Per-sample comparison -->
+        <div class="panel">
+          <h2>Per-sample comparison</h2>
+          <p class="panel-sub">Baseline sklearn <code>inverse_transform</code> vs. the ambiguity-safe layer.</p>
+          <div class="table-wrap">
+            <table id="resultsTable" class="results-table">
+              <thead>
+                <tr>
+                  <th>#</th><th>Input</th><th>Encoded</th>
+                  <th>Baseline decode</th><th>Status</th>
+                  <th>Safe output</th><th>Possible values</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Metadata -->
+        <div class="panel">
+          <h2>Encoder metadata</h2>
+          <div id="metadataBox" class="metadata-box"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>B.Tech Capstone &middot; 2025&ndash;26</span>
+    <span id="healthStatus" class="health">checking API…</span>
+  </footer>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
