@@ -1,6 +1,7 @@
 # Ambiguity-Safe Inverse Decoding for One-Hot Encoded Categorical Data
 
-**B.Tech Final-Year Capstone Project — Review 1**
+**B.Tech Final-Year Capstone Project — Semester VII / Review-2 (CP1 Gate 2)**  
+*Canonical ID: `KLCAP-2026-00332` | Domain: Computational Intelligence and Optimization*
 
 ---
 

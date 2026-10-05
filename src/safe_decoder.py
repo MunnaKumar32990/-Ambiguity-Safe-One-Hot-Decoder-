@@ -7,26 +7,28 @@ This class provides an ambiguity-safe wrapper around OneHotEncoder's
 inverse_transform. It orchestrates:
 
   1. Fitting via MetadataAwareEncoder
-  2. Encoding (transform)
-  3. Safe decoding (safe_inverse_transform)
-  4. Reporting per-sample decoding results with ambiguity status
+  2. Encoding (transform) with sparse or dense outputs
+  3. Safe decoding (safe_inverse_transform) with selectable Ambiguity Policies
+  4. Reporting per-sample decoding results with ambiguity status and provenance side-channels
 
 Design Principle
 ----------------
 The decoder does NOT modify what sklearn encodes. It adds a safety layer
 on top of the decode step: instead of blindly trusting inverse_transform,
 it uses AmbiguityDetector to classify each decoding as SAFE, AMBIGUOUS,
-or UNKNOWN, and withholds the reconstructed value when ambiguous.
+or UNKNOWN, and enforces explicit ambiguity resolution policies (Deliverable D3).
 """
 
 import numpy as np
 import pandas as pd
-from typing import List, Optional, Any, Dict
+from scipy import sparse
+from typing import List, Optional, Any, Dict, Union
 from dataclasses import dataclass, field
 
 from .encoder import MetadataAwareEncoder
 from .ambiguity_detector import AmbiguityDetector, AmbiguityStatus, FeatureAmbiguityReport
 from .metadata import EncoderMetadata
+from .policies import AmbiguityPolicy, AmbiguityRejectionError, format_sentinel
 
 
 @dataclass
@@ -47,8 +49,7 @@ class DecodingResult:
     row_status : AmbiguityStatus
         Aggregated status for the entire row.
     safe_output : list or None
-        The safe decoded output. Each element is either the reconstructed
-        category (if SAFE for that feature) or None (if AMBIGUOUS/UNKNOWN).
+        The safe decoded output governed by the active AmbiguityPolicy.
     possible_values : list[list]
         For each feature, the list of possible original categories.
     reasons : list[str]
@@ -57,6 +58,10 @@ class DecodingResult:
         "HIGH"   -> all features SAFE
         "MEDIUM" -> some features SAFE, some UNKNOWN
         "LOW"    -> at least one feature AMBIGUOUS
+    policy_applied : str
+        The AmbiguityPolicy used during decoding.
+    provenance : dict, optional
+        Structured side-channel audit metadata (Deliverable D3).
     """
     sample_index: int
     encoded: List[float]
@@ -67,8 +72,10 @@ class DecodingResult:
     possible_values: List[List[Any]]
     reasons: List[str]
     confidence: str
+    policy_applied: str = AmbiguityPolicy.WITHHOLD.value
+    provenance: Optional[Dict[str, Any]] = None
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> Dict[str, Any]:
         """Serialize to a flat dict suitable for DataFrame/CSV export."""
         return {
             "sample_index": self.sample_index,
@@ -79,6 +86,8 @@ class DecodingResult:
             "possible_values": self.possible_values,
             "reasons": self.reasons,
             "confidence": self.confidence,
+            "policy_applied": self.policy_applied,
+            "provenance": self.provenance,
         }
 
     def is_safe(self) -> bool:
@@ -98,7 +107,8 @@ class AmbiguitySafeOneHotDecoder:
     Usage
     -----
     >>> decoder = AmbiguitySafeOneHotDecoder(drop="if_binary",
-    ...                                      handle_unknown="ignore")
+    ...                                      handle_unknown="ignore",
+    ...                                      default_policy=AmbiguityPolicy.SENTINEL)
     >>> decoder.fit(X_train)
     >>> X_encoded = decoder.transform(X_test)
     >>> results = decoder.safe_inverse_transform(X_encoded)
@@ -110,9 +120,11 @@ class AmbiguitySafeOneHotDecoder:
     drop : str or None
         Passed to OneHotEncoder.
     handle_unknown : str
-        Passed to OneHotEncoder.
+        Passed to OneHotEncoder ("ignore" or "error").
     sparse_output : bool
         Whether to use sparse matrices (default False).
+    default_policy : AmbiguityPolicy
+        Default policy for handling ambiguous features (Deliverable D3).
     """
 
     def __init__(
@@ -120,10 +132,16 @@ class AmbiguitySafeOneHotDecoder:
         drop: Optional[str] = "if_binary",
         handle_unknown: str = "ignore",
         sparse_output: bool = False,
+        default_policy: Union[AmbiguityPolicy, str] = AmbiguityPolicy.WITHHOLD,
     ):
         self.drop = drop
         self.handle_unknown = handle_unknown
         self.sparse_output = sparse_output
+        self.default_policy = (
+            AmbiguityPolicy(default_policy)
+            if isinstance(default_policy, str)
+            else default_policy
+        )
 
         self._enc = MetadataAwareEncoder(
             drop=drop,
@@ -137,37 +155,38 @@ class AmbiguitySafeOneHotDecoder:
     # Public API                                                           #
     # ------------------------------------------------------------------ #
 
-    def fit(self, X: List[List[Any]]) -> "AmbiguitySafeOneHotDecoder":
+    def fit(self, X: Any) -> "AmbiguitySafeOneHotDecoder":
         """Fit the encoder and build the ambiguity detector."""
         self._enc.fit(X)
         self._detector = AmbiguityDetector(self._enc.metadata)
         self.is_fitted = True
         return self
 
-    def transform(self, X: List[List[Any]]) -> np.ndarray:
-        """Encode input data. Returns np.ndarray."""
+    def transform(self, X: Any) -> Union[np.ndarray, sparse.spmatrix]:
+        """Encode input data. Returns np.ndarray or scipy.sparse matrix."""
         self._check_fitted()
         return self._enc.transform(X)
 
-    def fit_transform(self, X: List[List[Any]]) -> np.ndarray:
+    def fit_transform(self, X: Any) -> Union[np.ndarray, sparse.spmatrix]:
         """Fit then transform."""
         return self.fit(X).transform(X)
 
     def safe_inverse_transform(
-        self, X_encoded: np.ndarray
+        self,
+        X_encoded: Union[np.ndarray, sparse.spmatrix, List[List[float]]],
+        policy: Optional[Union[AmbiguityPolicy, str]] = None,
     ) -> List[DecodingResult]:
         """
-        Perform ambiguity-safe inverse transformation.
+        Perform ambiguity-safe inverse transformation across drop modes and policies.
 
-        For each encoded row:
-          1. Run sklearn's inverse_transform (baseline result).
-          2. Run AmbiguityDetector on the row.
-          3. Build a DecodingResult with full ambiguity metadata.
-          4. Set safe_output to None for ambiguous/unknown features.
+        Supports both dense arrays and scipy sparse matrices.
 
         Parameters
         ----------
-        X_encoded : np.ndarray of shape (n_samples, n_encoded_cols)
+        X_encoded : np.ndarray or scipy.sparse matrix or list
+            Encoded representation.
+        policy : AmbiguityPolicy or str, optional
+            Resolution policy (WITHHOLD, SENTINEL, PROVENANCE_SIDE_CHANNEL, STRICT_REJECTION).
 
         Returns
         -------
@@ -175,35 +194,91 @@ class AmbiguitySafeOneHotDecoder:
             One result per input row.
         """
         self._check_fitted()
-        X_encoded = np.array(X_encoded)
 
-        # Baseline sklearn decode (used for comparison, not as ground truth)
+        active_policy = (
+            AmbiguityPolicy(policy)
+            if isinstance(policy, str)
+            else (policy or self.default_policy)
+        )
+
+        # Baseline sklearn decode (supports sparse and dense directly)
         sklearn_decoded_all = self._enc.inverse_transform(X_encoded)
 
-        results = []
-        for i, row in enumerate(X_encoded):
+        # Ensure dense array representation for per-row sub-vector inspection
+        if sparse.issparse(X_encoded):
+            X_dense = X_encoded.toarray()
+        else:
+            X_dense = np.asarray(X_encoded)
+
+        results: List[DecodingResult] = []
+        for i, row in enumerate(X_dense):
             sklearn_row = list(sklearn_decoded_all[i])
             feature_reports = self._detector.analyze_vector(row, sklearn_row)
             row_status = self._detector.aggregate_row_status(feature_reports)
 
-            # Build safe_output: None where ambiguous/unknown
+            # Check strict rejection policy
+            if active_policy == AmbiguityPolicy.STRICT_REJECTION:
+                for rep in feature_reports:
+                    if rep.status in (AmbiguityStatus.AMBIGUOUS, AmbiguityStatus.UNKNOWN):
+                        raise AmbiguityRejectionError(
+                            f"Sample {i} rejected by safety policy: Feature {rep.feature_index} "
+                            f"is {rep.status.value} (possible candidates: {rep.possible_values}).",
+                            sample_index=i,
+                            feature_index=rep.feature_index,
+                            possible_values=rep.possible_values,
+                        )
+
+            # Build safe_output and provenance based on policy
             safe_output = []
             possible_values = []
             reasons = []
+
             for rep in feature_reports:
+                feat_meta = self.metadata.features[rep.feature_index]
                 if rep.status == AmbiguityStatus.SAFE:
-                    safe_output.append(rep.possible_values[0]
-                                       if rep.possible_values else rep.sklearn_decoded)
-                else:
+                    val = rep.possible_values[0] if rep.possible_values else rep.sklearn_decoded
+                    safe_output.append(val)
+                elif active_policy == AmbiguityPolicy.SENTINEL:
+                    sentinel_val = format_sentinel(
+                        rep.status.value,
+                        dropped_category=feat_meta.dropped_category,
+                        possible_values=rep.possible_values,
+                    )
+                    safe_output.append(sentinel_val)
+                elif active_policy == AmbiguityPolicy.PROVENANCE_SIDE_CHANNEL:
+                    # Returns candidate prediction while flagging side-channel
+                    safe_output.append(rep.sklearn_decoded)
+                else:  # WITHHOLD
                     safe_output.append(None)
+
                 possible_values.append(rep.possible_values)
                 reasons.append(rep.reason)
 
             confidence = self._compute_confidence(feature_reports)
 
+            # Provenance side-channel metadata
+            provenance = {
+                "sample_index": i,
+                "has_ambiguity": any(rep.status == AmbiguityStatus.AMBIGUOUS for rep in feature_reports),
+                "has_unknown": any(rep.status == AmbiguityStatus.UNKNOWN for rep in feature_reports),
+                "confidence": confidence,
+                "policy": active_policy.value,
+                "feature_provenance": [
+                    {
+                        "feature_index": rep.feature_index,
+                        "status": rep.status.value,
+                        "candidates": [str(c) for c in rep.possible_values],
+                        "sklearn_prediction": str(rep.sklearn_decoded) if rep.sklearn_decoded is not None else None,
+                        "is_ambiguous": rep.status == AmbiguityStatus.AMBIGUOUS,
+                        "reason": rep.reason,
+                    }
+                    for rep in feature_reports
+                ],
+            }
+
             result = DecodingResult(
                 sample_index=i,
-                encoded=list(row),
+                encoded=[float(v) for v in row],
                 sklearn_decoded=sklearn_row,
                 feature_reports=feature_reports,
                 row_status=row_status,
@@ -211,13 +286,15 @@ class AmbiguitySafeOneHotDecoder:
                 possible_values=possible_values,
                 reasons=reasons,
                 confidence=confidence,
+                policy_applied=active_policy.value,
+                provenance=provenance,
             )
             results.append(result)
 
         return results
 
     def baseline_inverse_transform(
-        self, X_encoded: np.ndarray
+        self, X_encoded: Union[np.ndarray, sparse.spmatrix, List[List[float]]]
     ) -> np.ndarray:
         """
         Raw sklearn inverse_transform without safety checking.
@@ -244,7 +321,6 @@ class AmbiguitySafeOneHotDecoder:
         """
         rows = []
         for res in results:
-            n_features = len(res.feature_reports)
             for feat_idx, rep in enumerate(res.feature_reports):
                 rows.append({
                     "sample_index": res.sample_index,
@@ -257,11 +333,12 @@ class AmbiguitySafeOneHotDecoder:
                     "reason": rep.reason,
                     "row_status": res.row_status.value,
                     "confidence": res.confidence,
+                    "policy_applied": res.policy_applied,
                 })
         return pd.DataFrame(rows)
 
     # ------------------------------------------------------------------ #
-    # Internal helpers                                                     #
+    # Internal helpers                                                   #
     # ------------------------------------------------------------------ #
 
     def _check_fitted(self):

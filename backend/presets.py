@@ -135,6 +135,101 @@ PRESETS = {
             "Unknown=[0,0]. All-zeros uniquely means unseen → UNKNOWN."
         ),
     },
+    "nt1_binary_collision": {
+        "name": "NT-1: Binary Dropped Category Collision",
+        "description": (
+            "Mandatory Negative Test 1: An unseen gender category ('NonBinary') "
+            "collides with the dropped known category ('Female') under drop='if_binary'. "
+            "sklearn silently outputs 'Female'. Our system flags AMBIGUOUS."
+        ),
+        "train_data": [["Female"], ["Male"]],
+        "test_data": [["Female"], ["Male"], ["NonBinary"]],
+        "ground_truth": [["Female"], ["Male"], ["NonBinary"]],
+        "feature_names": ["Gender"],
+        "drop": "if_binary",
+        "handle_unknown": "ignore",
+        "expected_insight": (
+            "sklearn silently misdecodes 'NonBinary' as 'Female'. "
+            "Ambiguity-Safe layer intercepts the all-zeros vector and withholds the erroneous label."
+        ),
+    },
+    "nt2_multicolumn_compound": {
+        "name": "NT-2: Multi-Column Compound Dropped Collision",
+        "description": (
+            "Mandatory Negative Test 2: Multiple columns have dropped categories ('first'). "
+            "A test row with unseen categories across all columns results in an all-zeros vector "
+            "for each feature, causing sklearn to fabricate a fictitious valid record."
+        ),
+        "train_data": [
+            ["High_Risk", "Credit_OK", "North"],
+            ["Low_Risk", "Credit_Poor", "South"],
+            ["Med_Risk", "Credit_Good", "East"],
+        ],
+        "test_data": [
+            ["High_Risk", "Credit_OK", "North"],
+            ["Unseen_Risk", "Unseen_Credit", "Unseen_Region"],
+        ],
+        "ground_truth": [
+            ["High_Risk", "Credit_OK", "North"],
+            ["Unseen_Risk", "Unseen_Credit", "Unseen_Region"],
+        ],
+        "feature_names": ["Risk_Level", "Credit_Tier", "Region"],
+        "drop": "first",
+        "handle_unknown": "ignore",
+        "expected_insight": (
+            "Baseline decodes unseen row into [High_Risk, Credit_Good, East] silently. "
+            "Ambiguity-Safe decoder detects compound ambiguity across all columns independently."
+        ),
+    },
+    "nt4_missing_values": {
+        "name": "NT-4: Missing Values (NaN / None) Injection",
+        "description": (
+            "Mandatory Negative Test 4: Missing data values (NaN, None) ingested as inputs. "
+            "When drop='first', missing values encode to zeros and silently decode to the first category."
+        ),
+        "train_data": [["Grade_A"], ["Grade_B"], ["Grade_C"]],
+        "test_data": [["Grade_A"], ["None"], ["NaN"], ["Grade_X"]],
+        "ground_truth": [["Grade_A"], ["None"], ["NaN"], ["Grade_X"]],
+        "feature_names": ["Grade"],
+        "drop": "first",
+        "handle_unknown": "ignore",
+        "expected_insight": (
+            "Missing values (None/NaN) are mapped to zeros and mistakenly assigned 'Grade_A' by sklearn. "
+            "Our system detects the collision and flags AMBIGUOUS."
+        ),
+    },
+    "adult_census_demographics": {
+        "name": "Real-World: Adult Census Demographics",
+        "description": (
+            "Realistic high-dimensional categorical features adapted from the UCI Adult Census dataset: "
+            "Workclass, Education, MaritalStatus, Occupation, and Sex. Evaluates multi-attribute ambiguity."
+        ),
+        "train_data": [
+            ["Private", "Bachelors", "Never-married", "Tech-support", "Female"],
+            ["Self-emp", "Masters", "Married-civ", "Exec-managerial", "Male"],
+            ["State-gov", "HS-grad", "Divorced", "Adm-clerical", "Female"],
+            ["Federal-gov", "Doctorate", "Married-civ", "Prof-specialty", "Male"],
+        ],
+        "test_data": [
+            ["Private", "Bachelors", "Never-married", "Tech-support", "Female"],
+            ["Self-emp", "Masters", "Married-civ", "Exec-managerial", "Male"],
+            ["Gig-Economy", "Some-College", "Separated", "Freelance", "Non-Binary"],
+            ["Private", "Doctorate", "Never-married", "Cybersecurity", "Female"],
+        ],
+        "ground_truth": [
+            ["Private", "Bachelors", "Never-married", "Tech-support", "Female"],
+            ["Self-emp", "Masters", "Married-civ", "Exec-managerial", "Male"],
+            ["Gig-Economy", "Some-College", "Separated", "Freelance", "Non-Binary"],
+            ["Private", "Doctorate", "Never-married", "Cybersecurity", "Female"],
+        ],
+        "feature_names": ["Workclass", "Education", "MaritalStatus", "Occupation", "Sex"],
+        "drop": "first",
+        "handle_unknown": "ignore",
+        "expected_insight": (
+            "Unseen job and gender categories trigger column-isolated ambiguity alerts without corrupting "
+            "unambiguous features like Private or Bachelors."
+        ),
+    },
 }
 
 

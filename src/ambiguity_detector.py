@@ -288,19 +288,16 @@ class AmbiguityDetector:
         cats = feat.categories
         dropped_idx = feat.dropped_category_index
 
-        # Build list of non-dropped categories in their encoded order
-        non_dropped = []
-        for i, cat in enumerate(cats):
-            if dropped_idx is not None and i == dropped_idx:
-                continue
-            non_dropped.append(cat)
-
-        # Each non-dropped category i maps to a unit vector at position i
-        for enc_pos, cat in enumerate(non_dropped):
-            expected = np.zeros(feat.n_encoded_columns)
-            expected[enc_pos] = 1.0
-            if np.array_equal(sub_vec, expected):
-                return cat
+        # Direct O(1) matching if vector is standard one-hot (single 1.0)
+        if np.sum(sub_vec == 1.0) == 1 and np.sum(sub_vec) == 1.0:
+            enc_pos = int(np.argmax(sub_vec))
+            curr_pos = 0
+            for i, cat in enumerate(cats):
+                if dropped_idx is not None and i == dropped_idx:
+                    continue
+                if curr_pos == enc_pos:
+                    return cat
+                curr_pos += 1
 
         return None
 

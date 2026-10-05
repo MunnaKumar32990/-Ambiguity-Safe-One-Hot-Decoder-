@@ -1,136 +1,304 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ambiguity-Safe Inverse Decoding</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>◧</text></svg>" />
+  <title>Ambiguity-Safe Inverse Decoding — Capstone Review-2</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🛡️</text></svg>" />
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
+  <!-- ================= TOPBAR ================= -->
   <header class="topbar">
     <div class="topbar-inner">
       <div class="brand">
-        <span class="brand-mark" aria-hidden="true">◧</span>
+        <span class="brand-mark" aria-hidden="true">🛡️</span>
         <div class="brand-text">
-          <h1>Ambiguity-Safe Inverse Decoding</h1>
-          <p>One-Hot Encoded Categorical Data &middot; Interactive Demonstrator</p>
+          <div class="brand-title-row">
+            <h1>Ambiguity-Safe Inverse Decoding</h1>
+            <span class="badge-code">KLCAP-2026-00332</span>
+            <span class="badge-review">CP1 Review-2 Prototype</span>
+          </div>
+          <p>Scikit-Learn Issue #34549 Resolution &middot; Explicit Ambiguity Policies &middot; Verification Harness</p>
         </div>
       </div>
-      <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">
-        <span class="theme-icon">☾</span>
-      </button>
+      <div class="topbar-actions">
+        <span id="healthStatus" class="health">Checking API…</span>
+        <button id="themeToggle" class="theme-toggle" type="button" aria-label="Toggle dark mode">
+          <span class="theme-icon">☀</span>
+        </button>
+      </div>
     </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs" aria-label="Project sections">
+      <div class="nav-tabs-inner">
+        <button class="nav-tab active" data-tab="sandbox">🔬 Interactive Sandbox & Policies</button>
+        <button class="nav-tab" data-tab="negtests">🛡️ Mandatory Negative Tests (NT-1..5)</button>
+        <button class="nav-tab" data-tab="kpis">📊 KPI Benchmarks (KPI-1..6)</button>
+        <button class="nav-tab" data-tab="evidence">📑 Contract & Deliverables (D1..D7)</button>
+      </div>
+    </nav>
   </header>
 
-  <main class="layout">
-    <!-- ================= CONFIG PANEL ================= -->
-    <section class="panel config" aria-labelledby="config-title">
-      <h2 id="config-title">Configuration</h2>
+  <!-- ================= MAIN APP ================= -->
+  <main class="layout-container">
 
-      <label class="field">
-        <span class="field-label">Preset scenario</span>
-        <select id="presetSelect">
-          <option value="">— Custom (edit fields below) —</option>
-        </select>
-      </label>
-      <p id="presetDesc" class="preset-desc"></p>
+    <!-- ================= TAB 1: INTERACTIVE SANDBOX ================= -->
+    <div id="tab-sandbox" class="tab-pane active">
+      <div class="sandbox-grid">
+        <!-- Configuration Panel -->
+        <section class="panel config" aria-labelledby="config-title">
+          <div class="panel-header">
+            <h2 id="config-title">Experiment Configuration</h2>
+            <span class="panel-hint">Configure or load standard presets</span>
+          </div>
 
-      <label class="field">
-        <span class="field-label">Feature names <em>(comma-separated)</em></span>
-        <input id="featureNames" type="text" placeholder="Gender" />
-      </label>
+          <label class="field">
+            <span class="field-label">Preset Scenario</span>
+            <select id="presetSelect">
+              <option value="">— Custom (edit fields below) —</option>
+            </select>
+          </label>
+          <p id="presetDesc" class="preset-desc"></p>
 
-      <label class="field">
-        <span class="field-label">Training data</span>
-        <span class="field-hint">One sample per line. Multiple features: comma-separated.</span>
-        <textarea id="trainData" rows="4" spellcheck="false" placeholder="Female&#10;Male"></textarea>
-      </label>
+          <label class="field">
+            <span class="field-label">Feature Names <em>(comma-separated)</em></span>
+            <input id="featureNames" type="text" placeholder="Gender" />
+          </label>
 
-      <label class="field">
-        <span class="field-label">Test data</span>
-        <span class="field-hint">Include unseen categories to trigger ambiguity.</span>
-        <textarea id="testData" rows="4" spellcheck="false" placeholder="Female&#10;Male&#10;Unknown"></textarea>
-      </label>
+          <div class="field-row">
+            <label class="field">
+              <span class="field-label">Drop Strategy (drop)</span>
+              <select id="dropSelect">
+                <option value="if_binary">if_binary (Binary drop)</option>
+                <option value="first">first (Drop 1st category)</option>
+                <option value="null">None (Keep all columns)</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-label">handle_unknown</span>
+              <select id="handleUnknown">
+                <option value="ignore">ignore (Encodes zeros)</option>
+                <option value="error">error (Raises exception)</option>
+              </select>
+            </label>
+          </div>
 
-      <label class="field">
-        <span class="field-label">Ground truth <em>(optional)</em></span>
-        <span class="field-hint">True labels, for baseline correctness scoring.</span>
-        <textarea id="groundTruth" rows="4" spellcheck="false" placeholder="Female&#10;Male&#10;Unknown"></textarea>
-      </label>
+          <label class="field policy-field">
+            <span class="field-label">Ambiguity Resolution Policy <span class="badge-d3">Deliverable D3</span></span>
+            <select id="policySelect">
+              <option value="WITHHOLD">WITHHOLD — Nullify ambiguous slots (Default)</option>
+              <option value="SENTINEL">SENTINEL — Structured tokens &lt;AMBIGUOUS:...&gt;</option>
+              <option value="PROVENANCE_SIDE_CHANNEL">PROVENANCE_SIDE_CHANNEL — Raw guess + audit channel</option>
+              <option value="STRICT_REJECTION">STRICT_REJECTION — Abort immediately on ambiguity</option>
+            </select>
+            <p id="policyHint" class="field-hint policy-hint">Withholds the decoded value (None) when ambiguous to prevent silent misclassification.</p>
+          </label>
 
-      <div class="field-row">
-        <label class="field">
-          <span class="field-label">drop</span>
-          <select id="dropSelect">
-            <option value="if_binary">if_binary</option>
-            <option value="first">first</option>
-            <option value="null">None</option>
-          </select>
-        </label>
-        <label class="field">
-          <span class="field-label">handle_unknown</span>
-          <select id="handleUnknown">
-            <option value="ignore">ignore</option>
-            <option value="error">error</option>
-          </select>
-        </label>
+          <label class="field">
+            <span class="field-label">Training Data <em>(one sample per line)</em></span>
+            <textarea id="trainData" rows="3" spellcheck="false" placeholder="Female&#10;Male"></textarea>
+          </label>
+
+          <label class="field">
+            <span class="field-label">Test Data <em>(include unseen categories to trigger collisions)</em></span>
+            <textarea id="testData" rows="3" spellcheck="false" placeholder="Female&#10;Male&#10;Unknown"></textarea>
+          </label>
+
+          <label class="field">
+            <span class="field-label">Ground Truth <em>(optional, for correctness scoring)</em></span>
+            <textarea id="groundTruth" rows="3" spellcheck="false" placeholder="Female&#10;Male&#10;Unknown"></textarea>
+          </label>
+
+          <button id="analyzeBtn" class="btn-primary" type="button">Run Safe Decoding Analysis</button>
+          <p id="errorBox" class="error-box" hidden></p>
+        </section>
+
+        <!-- Results Panel -->
+        <section class="results" aria-live="polite">
+          <div id="placeholder" class="placeholder">
+            <div class="placeholder-icon">◧</div>
+            <p class="placeholder-title">Pick a preset or enter data, then click <strong>Run Safe Decoding Analysis</strong>.</p>
+            <p class="placeholder-sub">Experience how scikit-learn's silent label corruption is trapped and safely neutralized.</p>
+          </div>
+
+          <div id="resultsBody" hidden>
+            <!-- Key finding banner -->
+            <div id="keyFinding" class="key-finding"></div>
+
+            <!-- Policy Rejection Alert (If STRICT_REJECTION triggered) -->
+            <div id="rejectionAlert" class="rejection-alert" hidden>
+              <div class="rejection-header">
+                <span class="alert-icon">🛑</span>
+                <strong>STRICT_REJECTION TRIGGERED: AmbiguityRejectionError</strong>
+              </div>
+              <p id="rejectionMessage"></p>
+            </div>
+
+            <!-- Metric scorecards -->
+            <div class="tiles" id="tiles"></div>
+
+            <!-- Decoding status distribution -->
+            <div class="panel">
+              <div class="panel-header">
+                <h2>Decoding Status Distribution</h2>
+                <span class="panel-hint">Row-level safety classification</span>
+              </div>
+              <div id="statusBars" class="status-bars"></div>
+            </div>
+
+            <!-- Per-sample comparison table -->
+            <div class="panel">
+              <div class="panel-header">
+                <h2>Side-by-Side Reconstruction Comparison</h2>
+                <span class="panel-hint">Baseline scikit-learn vs. Ambiguity-Safe Layer</span>
+              </div>
+              <div class="table-wrap">
+                <table id="resultsTable" class="results-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Input</th>
+                      <th>Encoded Sub-Vector</th>
+                      <th>Baseline (sklearn)</th>
+                      <th>Status</th>
+                      <th>Safe Output</th>
+                      <th>Candidate Set</th>
+                      <th>Provenance</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Encoder metadata -->
+            <div class="panel">
+              <div class="panel-header">
+                <h2>Encoder Metadata & Collision Boundary</h2>
+                <span class="panel-hint">Zero-collision potential and schema analysis</span>
+              </div>
+              <div id="metadataBox" class="metadata-box"></div>
+            </div>
+          </div>
+        </section>
       </div>
+    </div>
 
-      <button id="analyzeBtn" class="btn-primary" type="button">Analyze</button>
-      <p id="errorBox" class="error-box" hidden></p>
-    </section>
-
-    <!-- ================= RESULTS ================= -->
-    <section class="results" aria-live="polite">
-      <div id="placeholder" class="placeholder">
-        <p class="placeholder-title">Pick a preset or enter data, then press <strong>Analyze</strong>.</p>
-        <p class="placeholder-sub">The canonical <em>Gender (Binary)</em> preset reproduces the core research problem.</p>
-      </div>
-
-      <div id="resultsBody" hidden>
-        <!-- Key finding -->
-        <div id="keyFinding" class="key-finding"></div>
-
-        <!-- Metric tiles -->
-        <div class="tiles" id="tiles"></div>
-
-        <!-- Status distribution -->
-        <div class="panel">
-          <h2>Decoding status distribution</h2>
-          <div id="statusBars" class="status-bars"></div>
+    <!-- ================= TAB 2: NEGATIVE TESTS ================= -->
+    <div id="tab-negtests" class="tab-pane">
+      <div class="tab-header-banner">
+        <div>
+          <h2>Mandatory Negative-Test and Recovery Campaign</h2>
+          <p>Formal validation against edge cases, boundary collisions, missing values, and model persistence (KLCAP-2026-00332 Contract).</p>
         </div>
+        <button id="runNegTestsBtn" class="btn-primary" type="button">Run All 5 Negative Tests</button>
+      </div>
 
-        <!-- Per-sample comparison -->
+      <div id="negTestsLoading" class="loading-state" hidden>
+        <span class="spinner"></span> Running automated recovery campaign across NT-1 to NT-5…
+      </div>
+
+      <div id="negTestsContainer" class="neg-tests-grid">
+        <!-- Rendered dynamically via app.js -->
+      </div>
+    </div>
+
+    <!-- ================= TAB 3: KPI BENCHMARKS ================= -->
+    <div id="tab-kpis" class="tab-pane">
+      <div class="tab-header-banner">
+        <div>
+          <h2>KPI Baseline, Target & Pass Contract Dashboard</h2>
+          <p>Evaluation against the 6 contractual Key Performance Indicators defined in the project specification under AC-1 to AC-4.</p>
+        </div>
+        <button id="runKpisBtn" class="btn-primary" type="button">Run KPI Benchmark Suite</button>
+      </div>
+
+      <div id="kpisLoading" class="loading-state" hidden>
+        <span class="spinner"></span> Executing Monte-Carlo benchmark workloads across 400 test trials…
+      </div>
+
+      <div id="kpiSummaryBanner" class="kpi-summary-banner" hidden>
+        <!-- Rendered dynamically -->
+      </div>
+
+      <div id="kpisContainer" class="kpis-grid">
+        <!-- Rendered dynamically via app.js -->
+      </div>
+    </div>
+
+    <!-- ================= TAB 4: EVIDENCE & DELIVERABLES ================= -->
+    <div id="tab-evidence" class="tab-pane">
+      <div class="evidence-grid">
+        <!-- Left: Contract & Deliverables -->
         <div class="panel">
-          <h2>Per-sample comparison</h2>
-          <p class="panel-sub">Baseline sklearn <code>inverse_transform</code> vs. the ambiguity-safe layer.</p>
+          <div class="panel-header">
+            <h2>Semester VII Deliverables Status (CP1 Gate 2)</h2>
+            <span class="badge-approved">Review-2 Evaluation Ready</span>
+          </div>
+
           <div class="table-wrap">
-            <table id="resultsTable" class="results-table">
+            <table class="contract-table">
               <thead>
                 <tr>
-                  <th>#</th><th>Input</th><th>Encoded</th>
-                  <th>Baseline decode</th><th>Status</th>
-                  <th>Safe output</th><th>Possible values</th>
+                  <th>ID</th>
+                  <th>Deliverable Name</th>
+                  <th>Contract Scope</th>
+                  <th>Status</th>
                 </tr>
               </thead>
-              <tbody></tbody>
+              <tbody id="deliverablesTableBody">
+                <!-- Loaded dynamically or static fallback -->
+              </tbody>
             </table>
           </div>
         </div>
 
-        <!-- Metadata -->
+        <!-- Right: Source Citation & Defect Mechanics -->
         <div class="panel">
-          <h2>Encoder metadata</h2>
-          <div id="metadataBox" class="metadata-box"></div>
+          <div class="panel-header">
+            <h2>Defect Mechanics & Source Citation</h2>
+            <span class="badge-citation">scikit-learn #34549</span>
+          </div>
+          <div class="defect-explanation">
+            <div class="info-block">
+              <strong>Source Problem:</strong>
+              <p>When <code>OneHotEncoder</code> combines category dropping (<code>drop='first'</code> or <code>drop='if_binary'</code>) with <code>handle_unknown='ignore'</code>, an all-zeros sub-vector represents <em>both</em> the dropped category and any unseen category.</p>
+            </div>
+            <div class="info-block">
+              <strong>Vulnerability Impact:</strong>
+              <p>Vanilla <code>inverse_transform</code> silently assigns the dropped category label to unknown/unseen categories with 0% error warning, polluting downstream ML pipelines and decision engines.</p>
+            </div>
+            <div class="info-block">
+              <strong>Our Ambiguity-Safe Innovation:</strong>
+              <p>Metadata-driven Ambiguity Detector intercepts all-zero collisions at sub-vector granularity, providing 100% recall with four selectable safety policies: Null Withholding, Sentinel Token Injection, Provenance Side-Channels, and Strict Rejection.</p>
+            </div>
+          </div>
         </div>
       </div>
-    </section>
+    </div>
+
   </main>
 
+  <!-- ================= PROVENANCE MODAL ================= -->
+  <div id="provenanceModal" class="modal" hidden>
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Sample Provenance Side-Channel Audit Trace</h3>
+        <button id="closeModalBtn" class="close-btn" type="button">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- ================= FOOTER ================= -->
   <footer class="footer">
-    <span>B.Tech Capstone &middot; 2025&ndash;26</span>
-    <span id="healthStatus" class="health">checking API…</span>
+    <div class="footer-inner">
+      <span>B.Tech 4th Year (Odd Sem) &middot; Capstone Project Review-2 &middot; KLCAP-2026-00332</span>
+      <span>scikit-learn development build &middot; Python 3.12+ &middot; 100% Reproducibility</span>
+    </div>
   </footer>
 
   <script src="/js/app.js"></script>

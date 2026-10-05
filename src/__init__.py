@@ -17,8 +17,9 @@ from .encoder import MetadataAwareEncoder
 from .ambiguity_detector import AmbiguityDetector, AmbiguityStatus
 from .safe_decoder import AmbiguitySafeOneHotDecoder, DecodingResult
 from .evaluator import ExperimentEvaluator
+from .policies import AmbiguityPolicy, AmbiguityRejectionError, format_sentinel
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = [
     "EncoderMetadata",
     "FeatureMetadata",
@@ -28,4 +29,8 @@ __all__ = [
     "AmbiguitySafeOneHotDecoder",
     "DecodingResult",
     "ExperimentEvaluator",
+    "AmbiguityPolicy",
+    "AmbiguityRejectionError",
+    "format_sentinel",
 ]
+
