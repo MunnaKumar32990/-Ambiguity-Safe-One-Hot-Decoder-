@@ -43,8 +43,8 @@ from backend.presets import get_preset_names, get_preset, PRESETS
 app = Flask(__name__, static_folder=None)
 CORS(app)
 
-# Frontend directory for serving static files
-FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
+# Frontend directory for serving static files (React build)
+FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend-react", "dist"))
 
 evaluator = ExperimentEvaluator()
 
@@ -58,6 +58,13 @@ def serve_index():
     return send_from_directory(FRONTEND_DIR, "index.html")
 
 
+@app.route("/assets/<path:filename>")
+def serve_assets(filename):
+    """Serve Vite React assets."""
+    assets_dir = os.path.join(FRONTEND_DIR, "assets")
+    return send_from_directory(assets_dir, filename)
+
+
 @app.route("/css/<path:filename>")
 def serve_css(filename):
     """Serve CSS files."""
@@ -68,6 +75,7 @@ def serve_css(filename):
 def serve_js(filename):
     """Serve JavaScript files."""
     return send_from_directory(os.path.join(FRONTEND_DIR, "js"), filename)
+
 
 
 # ---------------------------------------------------------------------------

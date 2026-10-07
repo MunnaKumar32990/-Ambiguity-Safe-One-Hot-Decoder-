@@ -33,14 +33,14 @@
 | `tests/test_acceptance_conditions.py` | 4 tests verifying Acceptance Conditions AC-1 to AC-4 | ✅ 4/4 PASS |
 | **Total Automated Tests** | **63 tests passing with zero failures (`python -m pytest`)** | **✅ 63/63 PASS** |
 
-### 3. Web Application & Microservices (`backend/`, `frontend/`)
-| File | Role / Feature | Status |
+### 3. Web Application & Microservices (`backend/`, `frontend-react/`)
+| Component / Path | Tech Stack & Features | Status |
 |---|---|---|
-| `backend/app.py` | Flask REST API with endpoints `/api/analyze`, `/api/presets`, `/api/negative-tests`, `/api/kpi-benchmarks`, `/api/evidence-manifest` | ✅ Complete |
+| `frontend-react/` | Modern React 19 + JavaScript + Vite Single-Page Application with Lucide icons, glassmorphism, animated collision diagrams, interactive policy cards, provenance modals, and dark/light mode | ✅ Complete & Built (`dist/`) |
+| `backend/app.py` | Flask REST API serving React production bundle from `frontend-react/dist/` with endpoints `/api/analyze`, `/api/presets`, `/api/negative-tests`, `/api/kpi-benchmarks`, `/api/evidence-manifest` | ✅ Complete |
 | `backend/presets.py` | 10 curated presets including NT-1, NT-2, NT-4, and Adult Census Demographics | ✅ Complete |
-| `frontend/index.html` | Tabbed Single-Page Application (Sandbox, Negative Tests, KPIs, Contract) | ✅ Complete |
-| `frontend/css/style.css` | Glassmorphic dark/light design system, status badges, gauges, and tables | ✅ Complete |
-| `frontend/js/app.js` | Tab navigation, policy handling, live NT-1..5 runner, live KPI runner, modal trace | ✅ Complete |
+| `frontend/` (Legacy) | Vanilla HTML/CSS/JS fallback | ✅ Preserved |
+
 
 ### 4. Deliverables & Documentation (`docs/`, `notebooks/`)
 | File | Description | Status |
