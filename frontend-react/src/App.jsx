@@ -4,7 +4,6 @@ import TabNav from './components/TabNav';
 import SandboxTab from './components/SandboxTab';
 import NegativeTestsTab from './components/NegativeTestsTab';
 import KpisTab from './components/KpisTab';
-import EvidenceTab from './components/EvidenceTab';
 import ProvenanceModal from './components/ProvenanceModal';
 
 export default function App() {
@@ -63,9 +62,6 @@ export default function App() {
         )}
         {activeTab === 'kpis' && (
           <KpisTab />
-        )}
-        {activeTab === 'evidence' && (
-          <EvidenceTab />
         )}
       </main>
 

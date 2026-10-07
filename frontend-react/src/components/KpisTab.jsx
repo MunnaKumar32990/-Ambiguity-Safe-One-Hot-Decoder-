@@ -39,10 +39,10 @@ export default function KpisTab() {
             <h2 style={{ fontSize: '18px', fontWeight: 800 }}>
               Key Performance Indicators (KPI-1 to KPI-6) Dashboard
             </h2>
-            <span className="badge badge-code">Contract Page 3</span>
+            <span className="badge badge-code">Benchmark Suite</span>
           </div>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-            Quantitative benchmarking contract evaluating accuracy, recall, latency bounds, and memory overhead under AC-1 to AC-4.
+            Quantitative benchmarks evaluating accuracy, recall, latency bounds, and memory overhead.
           </p>
         </div>
 
@@ -75,14 +75,14 @@ export default function KpisTab() {
         }}>
           <div>
             <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Benchmark Execution Contract: {data.n_samples} Samples Evaluated
+              Benchmark Results: {data.n_samples} Samples Evaluated
             </div>
             <div style={{ fontSize: '12.5px', color: 'var(--text-secondary)', marginTop: '2px' }}>
               p95 Transform Latency: <strong>{data.summary.p95_safe_ms} ms</strong> &middot; Sparse Footprint: <strong>{data.summary.sparse_memory_pct}%</strong>
             </div>
           </div>
           <span className="badge badge-safe" style={{ fontSize: '12.5px', padding: '6px 12px' }}>
-            <CheckCircle2 size={16} /> ALL 6 KPIS PASSED (100% COMPLIANT)
+            <CheckCircle2 size={16} /> ALL 6 KPIS PASSED
           </span>
         </div>
       )}
@@ -145,7 +145,7 @@ export default function KpisTab() {
                   borderTop: '1px solid var(--border-subtle)', paddingTop: '10px', 
                   fontSize: '11.5px', color: 'var(--text-secondary)' 
                 }}>
-                  <strong style={{ color: 'var(--text-primary)' }}>Contract Target Rule:</strong> {kpi.target_rule}
+                  <strong style={{ color: 'var(--text-primary)' }}>Target Threshold:</strong> {kpi.target_rule}
                 </div>
               </div>
             );

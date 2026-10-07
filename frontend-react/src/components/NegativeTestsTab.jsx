@@ -41,7 +41,7 @@ export default function NegativeTestsTab() {
             <h2 style={{ fontSize: '18px', fontWeight: 800 }}>
               Mandatory Negative-Test and Recovery Campaign
             </h2>
-            <span className="badge badge-code">Contract Page 2</span>
+            <span className="badge badge-code">Validation Suite</span>
           </div>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>
             Verifies failure boundary behavior, abstention policies, degraded modes, recovery times, and residual-risk statements (NT-1 to NT-5).
@@ -83,7 +83,7 @@ export default function NegativeTestsTab() {
             </strong>
           </div>
           <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-            100% Contractual Compliance (AC-1 to AC-4)
+            100% Verification Pass Rate (NT-1 to NT-5)
           </span>
         </div>
       )}

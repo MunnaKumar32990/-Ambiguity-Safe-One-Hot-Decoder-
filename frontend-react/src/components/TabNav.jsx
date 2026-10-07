@@ -1,12 +1,11 @@
 import React from 'react';
-import { FlaskConical, ShieldAlert, BarChart3, FileCheck2 } from 'lucide-react';
+import { FlaskConical, ShieldAlert, BarChart3 } from 'lucide-react';
 
 export default function TabNav({ activeTab, setActiveTab }) {
   const tabs = [
     { id: 'sandbox', label: 'Interactive Sandbox & Policies', icon: FlaskConical },
     { id: 'negative-tests', label: 'Mandatory Negative Tests (NT-1..5)', icon: ShieldAlert, badge: '5 Tests' },
     { id: 'kpis', label: 'KPI Benchmarks (KPI-1..6)', icon: BarChart3, badge: '100% Pass' },
-    { id: 'evidence', label: 'Contract & Deliverables (D1..D7)', icon: FileCheck2 },
   ];
 
   return (

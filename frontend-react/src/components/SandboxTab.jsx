@@ -217,7 +217,7 @@ export default function SandboxTab({ onOpenProvenance }) {
             <label style={{ fontSize: '12.5px', fontWeight: 700 }}>
               Ambiguity Resolution Policy
             </label>
-            <span className="badge badge-code" style={{ fontSize: '10px' }}>Deliverable D3</span>
+            <span className="badge badge-code" style={{ fontSize: '10px' }}>Safety Policies</span>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>

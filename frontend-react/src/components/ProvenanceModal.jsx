@@ -95,7 +95,7 @@ export default function ProvenanceModal({ sample, onClose }) {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
               <span style={{ fontSize: '12.5px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                Structured Provenance Payload (Deliverable D3)
+                Structured Provenance Payload
               </span>
               <button 
                 onClick={copyJson}
