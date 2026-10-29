@@ -20,14 +20,15 @@ from src.negative_tests import NegativeTestCampaign
 
 class TestAcceptanceConditions:
     def test_ac1_representative_operation(self):
-        """AC-1: System successfully runs across all representative operating conditions."""
+        """AC-1: System successfully runs across all representative operating conditions (NT-1 to NT-6)."""
         reports = NegativeTestCampaign.run_all()
-        assert len(reports) == 5
+        assert len(reports) == 6
         assert all(r.verdict == "PASS" for r in reports)
 
     def test_ac2_boundary_and_failure_operation(self):
         """AC-2: System detects failure triggers, abstains, and documents residual risk."""
         reports = NegativeTestCampaign.run_all()
+        assert len(reports) == 6
         for r in reports:
             assert len(r.residual_risk_statement) > 10
             assert "PASS" == r.verdict
@@ -42,7 +43,9 @@ class TestAcceptanceConditions:
         assert measurements["KPI-3"]["safe_value"] >= 95.0  # High ambiguity recall
 
     def test_ac4_frozen_resource_envelope(self):
-        """AC-4: Toolchain versions meet contract constraints."""
+        """AC-4: Toolchain versions meet contract constraints (Python 3.12+)."""
         major, minor = sys.version_info.major, sys.version_info.minor
-        assert major == 3 and minor >= 10, f"Python version {major}.{minor} meets >= 3.10 constraint"
+        assert major == 3 and minor >= 12, (
+            f"Python {major}.{minor} does not meet Python 3.12+ requirement specified in AC-4"
+        )
         assert hasattr(sklearn, "__version__"), "scikit-learn is present and pinned"

@@ -19,6 +19,8 @@ Endpoints:
 import sys
 import os
 import platform
+import logging
+import datetime
 import sklearn
 import numpy as np
 import pandas as pd
@@ -26,7 +28,7 @@ import pandas as pd
 # Ensure the project root is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, g
 from flask_cors import CORS
 
 from src.safe_decoder import AmbiguitySafeOneHotDecoder
@@ -35,7 +37,18 @@ from src.evaluator import ExperimentEvaluator
 from src.policies import AmbiguityPolicy, AmbiguityRejectionError
 from src.negative_tests import NegativeTestCampaign
 from src.kpi_benchmarking import KPIEvaluator
+from src.conformance import ConformanceSuite
 from backend.presets import get_preset_names, get_preset, PRESETS
+
+# ---------------------------------------------------------------------------
+# Logging / Telemetry
+# ---------------------------------------------------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
+)
+logger = logging.getLogger("ambiguity_safe_api")
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -47,6 +60,25 @@ CORS(app)
 FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend-react", "dist"))
 
 evaluator = ExperimentEvaluator()
+
+
+@app.before_request
+def log_request_start():
+    """Telemetry: record request start time."""
+    g.start_time = datetime.datetime.utcnow()
+    logger.info("REQUEST  %s %s", request.method, request.path)
+
+
+@app.after_request
+def log_request_end(response):
+    """Telemetry: log response status and latency."""
+    if hasattr(g, "start_time"):
+        delta_ms = (datetime.datetime.utcnow() - g.start_time).total_seconds() * 1000
+        logger.info(
+            "RESPONSE %s %s -> %d (%.1f ms)",
+            request.method, request.path, response.status_code, delta_ms,
+        )
+    return response
 
 
 # ---------------------------------------------------------------------------
@@ -84,14 +116,20 @@ def serve_js(filename):
 
 @app.route("/api/health", methods=["GET"])
 def health():
-    """Health check endpoint with runtime environment details."""
+    """Health check endpoint with runtime environment details and version."""
+    py_version = platform.python_version()
+    py_major, py_minor = sys.version_info.major, sys.version_info.minor
+    env_ok = py_major == 3 and py_minor >= 12
     return jsonify({
         "status": "ok",
         "project": "Ambiguity-Safe Inverse Decoding",
         "canonical_id": "KLCAP-2026-00332",
-        "version": "1.0.0",
-        "python_version": platform.python_version(),
+        "version": "0.3.0",
+        "python_version": py_version,
+        "python_meets_requirement": env_ok,
         "sklearn_version": sklearn.__version__,
+        "platform": platform.system(),
+        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
     })
 
 
@@ -336,7 +374,7 @@ def analyze():
 @app.route("/api/negative-tests", methods=["GET"])
 def get_negative_tests():
     """
-    Executes the Mandatory Negative-Test and Recovery Campaign (NT-1 to NT-5).
+    Executes the Mandatory Negative-Test and Recovery Campaign (NT-1 to NT-6).
     Returns real-time execution results, observed failures, safe responses, and residual risks.
     """
     try:
@@ -347,6 +385,28 @@ def get_negative_tests():
             "all_passed": all_passed,
             "total_tests": len(reports),
             "reports": [r.to_dict() for r in reports],
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/conformance", methods=["GET"])
+def get_conformance():
+    """
+    Executes the Conformance Suite (C-01 to C-10) and returns a machine-readable report.
+    Satisfies O4: 'conformance suite and diagnostic report'.
+    """
+    try:
+        suite = ConformanceSuite()
+        report = suite.run_all()
+        summary = report.summary()
+        return jsonify({
+            "success": True,
+            "all_passed": summary["all_passed"],
+            "total_checks": summary["total_checks"],
+            "passed": summary["passed"],
+            "failed": summary["failed"],
+            "check_results": summary["check_results"],
         })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -371,6 +431,7 @@ def get_kpi_benchmarks():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+
 @app.route("/api/evidence-manifest", methods=["GET"])
 def get_evidence_manifest():
     """
@@ -388,13 +449,13 @@ def get_evidence_manifest():
         "deliverables": [
             {"id": "D1", "name": "Problem Charter, Requirements & Architecture", "status": "APPROVED", "evidence": "docs/architecture.md & Review-1 map"},
             {"id": "D2", "name": "Reproducible Baseline with Oracle & Failure Log", "status": "COMPLETE", "evidence": "tests/test_baseline.py & experiments/baseline_reproduction.py"},
-            {"id": "D3", "name": "Explicit Ambiguity Policies (Sentinel, Side-Channel, Rejection)", "status": "COMPLETE", "evidence": "src/policies.py & tests/test_policies.py"},
-            {"id": "D4", "name": "Complete Ambiguity-Safe Inverse Decoder Prototype", "status": "COMPLETE", "evidence": "src/safe_decoder.py & backend/app.py"},
-            {"id": "D5", "name": "Acceptance Test Harness (NT-1 to NT-5, AC-1 to AC-4, KPI-1 to KPI-6)", "status": "COMPLETE", "evidence": "tests/test_negative_tests.py & tests/test_acceptance_conditions.py"},
-            {"id": "D6", "name": "Versioned Repository, Documentation & API Spec", "status": "COMPLETE", "evidence": "README.md, docs/review2_report.md"},
-            {"id": "D7", "name": "Final Review-2 Demonstration & Technical Package", "status": "READY", "evidence": "Interactive Web App & notebooks/demonstration.ipynb"},
+            {"id": "D3", "name": "Explicit Ambiguity Policies (Sentinel, Side-Channel, Rejection)", "status": "COMPLETE", "evidence": "src/policies.py & experiments/experiment_ablation.py"},
+            {"id": "D4", "name": "Complete Ambiguity-Safe Decoder (Provenance, Conformance, Diagnostic)", "status": "COMPLETE", "evidence": "src/safe_decoder.py, src/provenance.py, src/conformance.py, src/diagnostic_report.py"},
+            {"id": "D5", "name": "Acceptance Test Harness (NT-1 to NT-6, AC-1 to AC-4, KPI-1 to KPI-6)", "status": "COMPLETE", "evidence": "tests/test_negative_tests.py, tests/test_conformance.py, tests/test_acceptance_conditions.py"},
+            {"id": "D6", "name": "Versioned Repository, Documentation & API Spec", "status": "COMPLETE", "evidence": "README.md, docs/cp2_final_report.md"},
+            {"id": "D7", "name": "Final Report, Demonstration Package & Viva Evidence", "status": "READY", "evidence": "Interactive Web App & notebooks/demonstration.ipynb"},
         ],
-        "negative_tests_summary": ["NT-1 (Binary Collision)", "NT-2 (Multi-Column)", "NT-3 (Sparse/Dense)", "NT-4 (Missing Values)", "NT-5 (Model Persistence)"],
+        "negative_tests_summary": ["NT-1 (Binary Collision)", "NT-2 (Multi-Column)", "NT-3 (Sparse/Dense)", "NT-4 (Missing Values)", "NT-5 (Model Persistence)", "NT-6 (Operational Workflow)"],
         "acceptance_conditions": ["AC-1 (Representative)", "AC-2 (Boundary/Failure)", "AC-3 (Held-out Evidence)", "AC-4 (Frozen Resource Envelope)"],
     }
     return jsonify(manifest)

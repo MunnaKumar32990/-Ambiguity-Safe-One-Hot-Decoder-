@@ -39,7 +39,13 @@ class TestNegativeTestsCampaign:
         assert report.nt_id == "NT-5"
         assert report.recovery_time_ms >= 0
 
+    def test_nt6_unknown_value_in_operational_workflow(self):
+        report = NegativeTestCampaign.run_nt6()
+        assert report.verdict == "PASS"
+        assert report.nt_id == "NT-6"
+        assert report.recovery_time_ms >= 0
+
     def test_full_campaign_runs_and_passes_all(self):
         reports = NegativeTestCampaign.run_all()
-        assert len(reports) == 5
+        assert len(reports) == 6
         assert all(r.verdict == "PASS" for r in reports)

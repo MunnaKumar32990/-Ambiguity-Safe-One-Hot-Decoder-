@@ -1,0 +1,42 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE-specific
+.vscode/settings.json
+.idea/
+pyrightconfig.json
+*.swp
+
+# Node / frontend build
+frontend-react/node_modules/
+frontend-react/dist/
+frontend-react/.cache/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary output files (reproducible via scripts)
+results/plots/*.png
+results/ablation_*.csv
+
+# Secrets / credentials
+*.env
+.env

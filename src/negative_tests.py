@@ -22,6 +22,9 @@ Each test records:
 
 import time
 import pickle
+import joblib
+import tempfile
+import os
 import numpy as np
 import pandas as pd
 from scipy import sparse
@@ -297,13 +300,123 @@ class NegativeTestCampaign:
             },
         )
 
+    @staticmethod
+    def run_nt6() -> NegativeTestReport:
+        """
+        NT-6: Unknown value colliding with a dropped binary category during the
+        full operating and validation workflow.
+
+        This test exercises the end-to-end *operational* scenario:
+        train → joblib serialize → reload → production-style batch inference → detection.
+        Unlike NT-1 (unit-level), NT-6 validates that the safety layer survives the
+        complete deployment pipeline with joblib persistence (the standard sklearn
+        serialization tool) and an alternate unseen category.
+        """
+        t0 = time.perf_counter()
+
+        # Training categories: sklearn sorts alphabetically, so 'Approved' < 'Declined'.
+        # Under drop='if_binary', 'Approved' is dropped and maps to all-zeros.
+        # Any unseen value under handle_unknown='ignore' also maps to all-zeros → collision.
+        train_data = [["Approved"], ["Declined"]]
+        test_data = [
+            ["Approved"],       # Known — dropped category (maps to [0])
+            ["Declined"],       # Known — retained category (maps to [1])
+            ["Maybe"],          # Unknown — collides with dropped 'Approved'
+            ["Perhaps"],        # Unknown — different unseen value, same collision
+        ]
+
+        decoder = AmbiguitySafeOneHotDecoder(drop="if_binary", handle_unknown="ignore")
+        decoder.fit(train_data)
+
+        # Verify the dropped category is actually 'Approved'
+        dropped_cat = decoder.metadata.features[0].dropped_category
+
+        # 2. Joblib persistence (production-standard sklearn serialization)
+        with tempfile.NamedTemporaryFile(suffix=".joblib", delete=False) as tmp:
+            tmp_path = tmp.name
+        try:
+            joblib.dump(decoder, tmp_path)
+            reloaded: AmbiguitySafeOneHotDecoder = joblib.load(tmp_path)
+        finally:
+            os.unlink(tmp_path)
+
+        # 3. Production-style inference on reloaded model
+        X_enc = reloaded.transform(test_data)
+        baseline_decoded = reloaded.baseline_inverse_transform(X_enc)
+
+        # 4. Safe decode
+        results = reloaded.safe_inverse_transform(X_enc, policy=AmbiguityPolicy.SENTINEL)
+        t1 = time.perf_counter()
+        recovery_ms = round((t1 - t0) * 1000, 3)
+
+        # Baseline silently decodes both unseen categories as the dropped category ('Approved')
+        baseline_silent_error_maybe   = (baseline_decoded[2][0] == dropped_cat)
+        baseline_silent_error_perhaps = (baseline_decoded[3][0] == dropped_cat)
+
+        # Safe decoder must detect AMBIGUOUS for both
+        safe_detected_maybe   = (results[2].row_status == AmbiguityStatus.AMBIGUOUS)
+        safe_detected_perhaps = (results[3].row_status == AmbiguityStatus.AMBIGUOUS)
+
+        # Known retained category 'Declined' must remain SAFE post-reload
+        known_safe = (results[1].row_status == AmbiguityStatus.SAFE)
+
+        verdict = "PASS" if (
+            baseline_silent_error_maybe
+            and baseline_silent_error_perhaps
+            and safe_detected_maybe
+            and safe_detected_perhaps
+            and known_safe
+            and reloaded.is_fitted
+        ) else "FAIL"
+
+        return NegativeTestReport(
+            nt_id="NT-6",
+            title="Unknown Value Colliding with Dropped Binary Category — Operational Workflow",
+            trigger=(
+                f"Joblib-serialized encoder reloaded in a simulated production inference container. "
+                f"Two distinct unseen categories ('Maybe', 'Perhaps') presented under "
+                f"drop='if_binary' + handle_unknown='ignore'. Dropped category: '{dropped_cat}'."
+            ),
+            observed_baseline_behavior=(
+                f"scikit-learn silently decoded both 'Maybe' and 'Perhaps' as '{dropped_cat}' "
+                "post-joblib-reload, with zero warnings or exceptions in the operational workflow."
+            ),
+            expected_safe_behavior=(
+                "Reloaded decoder must detect the all-zeros collision for all unseen inputs, "
+                "classify them AMBIGUOUS, and prevent silent label injection in the operational context."
+            ),
+            safe_response=(
+                f"Post-joblib-reload: 'Maybe' → {results[2].safe_output[0]}, "
+                f"'Perhaps' → {results[3].safe_output[0]}. "
+                f"Both classified AMBIGUOUS. Known 'Declined' remains SAFE."
+            ),
+            recovery_time_ms=recovery_ms,
+            residual_risk_statement=(
+                "Schema drift between training serialization environment and inference environment "
+                "if scikit-learn major versions differ between training host and deployment host. "
+                "Version pinning (AC-4 frozen resource envelope) mitigates this risk."
+            ),
+            verdict=verdict,
+            details={
+                "persistence_method": "joblib",
+                "dropped_category": dropped_cat,
+                "reloaded_is_fitted": reloaded.is_fitted,
+                "baseline_maybe": baseline_decoded[2][0],
+                "baseline_perhaps": baseline_decoded[3][0],
+                "safe_maybe": results[2].safe_output[0],
+                "safe_perhaps": results[3].safe_output[0],
+                "known_declined_status": results[1].row_status.value,
+            },
+        )
+
     @classmethod
     def run_all(cls) -> List[NegativeTestReport]:
-        """Execute full NT-1 to NT-5 campaign."""
+        """Execute full NT-1 to NT-6 campaign."""
         return [
             cls.run_nt1(),
             cls.run_nt2(),
             cls.run_nt3(),
             cls.run_nt4(),
             cls.run_nt5(),
+            cls.run_nt6(),
         ]
